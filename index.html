@@ -68,6 +68,7 @@
         
         // Status visibility toggle
         let statusVisible = false;
+        statusDiv.style.opacity = '0.1';
         statusDiv.addEventListener('click', () => {
             statusVisible = !statusVisible;
             statusDiv.style.opacity = statusVisible ? '1' : '0';
