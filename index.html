@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragon Radar</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: black;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            color: white;
+            font-size: 24px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="radar"></canvas>
+    <div id="status" class="status">Acquiring GPS signal...</div>
+    <div id="loading" class="loading">Loading Dragon Radar...</div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('radar');
+        const ctx = canvas.getContext('2d');
+        const statusDiv = document.getElementById('status');
+        const loadingDiv = document.getElementById('loading');
+        
+        // Set canvas dimensions to full screen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Constants
+        const GRID_SIZE_KM = 1; // Each grid square is 1km
+        
+        // Dragon Ball coordinates (hardcoded)
+        const DRAGON_BALL_COORDINATES = {
+            lat: 54.8582,
+            lng: 24.2775
+        };
+        
+        // User location (will be updated by geolocation)
+        let userLocation = {
+            lat: null,
+            lng: null
+        };
+        
+        // Blinking state
+        let blinkOn = true;
+        setInterval(() => {
+            blinkOn = !blinkOn;
+        }, 2000); // Blink every 2 seconds
+        
+        // Add a button to retry location permission if denied
+        function createRetryButton() {
+            const retryButton = document.createElement('button');
+            retryButton.textContent = 'Allow Location Access';
+            retryButton.style.position = 'absolute';
+            retryButton.style.top = '20px';
+            retryButton.style.left = '50%';
+            retryButton.style.transform = 'translateX(-50%)';
+            retryButton.style.padding = '10px 15px';
+            retryButton.style.backgroundColor = '#3a8f3a';
+            retryButton.style.color = 'white';
+            retryButton.style.border = 'none';
+            retryButton.style.borderRadius = '5px';
+            retryButton.style.cursor = 'pointer';
+            retryButton.onclick = initGeolocation;
+            document.body.appendChild(retryButton);
+            return retryButton;
+        }
+        
+        // Update user position from geolocation data
+        function updatePosition(position) {
+            // Hide loading screen once we have position
+            loadingDiv.style.display = 'none';
+            
+            // Update user location
+            userLocation.lat = position.coords.latitude;
+            userLocation.lng = position.coords.longitude;
+            
+            // Update status with current coordinates and accuracy
+            statusDiv.textContent = `GPS: ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)} (±${position.coords.accuracy.toFixed(1)}m)`;
+            
+            // Calculate distance to dragon ball
+            if (DRAGON_BALL_COORDINATES.lat && DRAGON_BALL_COORDINATES.lng) {
+                const { distance } = getDistanceAndBearing(
+                    userLocation.lat, userLocation.lng,
+                    DRAGON_BALL_COORDINATES.lat, DRAGON_BALL_COORDINATES.lng
+                );
+                
+                // Add distance to dragon ball in status
+                statusDiv.textContent += ` | Dragon Ball: ${distance.toFixed(2)}km`;
+            }
+        }
+        
+        // Initialize geolocation
+        function initGeolocation() {
+            if (navigator.geolocation) {
+                // Show a message to encourage the user to accept location permissions
+                statusDiv.textContent = "Please allow location access when prompted...";
+                
+                // Function to get current position
+                function getPosition() {
+                    navigator.geolocation.getCurrentPosition(
+                        updatePosition,
+                        handleLocationError,
+                        { 
+                            enableHighAccuracy: true, 
+                            maximumAge: 0,  // Don't use cached position
+                            timeout: 10000  // 10 second timeout
+                        }
+                    );
+                }
+                
+                // Get position immediately
+                getPosition();
+                
+                // Set up recurring timer to update position every 5 seconds
+                setInterval(getPosition, 5000);
+                
+            } else {
+                statusDiv.textContent = "Geolocation is not supported by this browser.";
+                useFallbackLocation();
+            }
+        }
+        
+        // Use fallback location if geolocation fails or is denied
+        function useFallbackLocation() {
+            loadingDiv.style.display = 'none';
+            userLocation.lat = 54.8483;
+            userLocation.lng = 24.2675;
+            
+            // Calculate distance to dragon ball with fallback coordinates
+            const { distance } = getDistanceAndBearing(
+                userLocation.lat, userLocation.lng,
+                DRAGON_BALL_COORDINATES.lat, DRAGON_BALL_COORDINATES.lng
+            );
+            
+            // Append demo coordinates info to the existing error message
+            statusDiv.textContent += ` | Demo: ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)} | Dragon Ball: ${distance.toFixed(2)}km`;
+        }
+        
+        // Handle geolocation errors
+        function handleLocationError(error) {
+            loadingDiv.style.display = 'none';
+            let retryButton;
+            
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    statusDiv.textContent = "Location access was denied. Using demo mode.";
+                    // Add a button to retry location permission
+                    retryButton = createRetryButton();
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    statusDiv.textContent = "Location information unavailable. Using demo mode.";
+                    break;
+                case error.TIMEOUT:
+                    statusDiv.textContent = "Location request timed out. Using demo mode.";
+                    break;
+                case error.UNKNOWN_ERROR:
+                    statusDiv.textContent = "Unknown location error. Using demo mode.";
+                    break;
+            }
+            
+            useFallbackLocation();
+        }
+        
+        // Calculate distance and bearing between two coordinates
+        function getDistanceAndBearing(lat1, lon1, lat2, lon2) {
+            // Convert to radians
+            const toRad = deg => deg * Math.PI / 180;
+            
+            const R = 6371; // Radius of the Earth in km
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c; // Distance in km
+            
+            // Calculate bearing
+            const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+            const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+                      Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+            
+            let bearing = Math.atan2(y, x);
+            bearing = bearing * 180 / Math.PI; // Convert to degrees
+            bearing = (bearing + 360) % 360; // Normalize to 0-360
+            
+            return { distance, bearing };
+        }
+        
+        // Draw radar
+        function drawRadar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Set background to black
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Calculate radar circle size - use smaller dimension
+            const radius = Math.min(canvas.width, canvas.height) * 0.45;
+            
+            // Draw circle with grey border
+            ctx.strokeStyle = '#888888';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // Create clipping region for the radar circle
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.clip();
+            
+            // Fill the radar with dark green
+            ctx.fillStyle = '#143d14'; // Dark green background
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate grid size to fit a 10x10 grid inside the circle
+            // We'll use a square grid that fits inside the circle
+            const gridSize = radius * 2 / 10; // 10x10 grid
+            
+            // Calculate grid starting position to center it
+            const gridStartX = centerX - radius;
+            const gridStartY = centerY - radius;
+            
+            // Draw the 10x10 grid lines
+            ctx.strokeStyle = '#0a2a0a'; // Dark grid lines
+            ctx.lineWidth = 2;
+            
+            // Draw vertical grid lines
+            for (let i = 0; i <= 10; i++) {
+                const x = gridStartX + i * gridSize;
+                ctx.beginPath();
+                ctx.moveTo(x, gridStartY);
+                ctx.lineTo(x, gridStartY + gridSize * 10);
+                ctx.stroke();
+            }
+            
+            // Draw horizontal grid lines
+            for (let i = 0; i <= 10; i++) {
+                const y = gridStartY + i * gridSize;
+                ctx.beginPath();
+                ctx.moveTo(gridStartX, y);
+                ctx.lineTo(gridStartX + gridSize * 10, y);
+                ctx.stroke();
+            }
+            
+            // Draw user location (red triangle)
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - 15);
+            ctx.lineTo(centerX - 10, centerY + 5);
+            ctx.lineTo(centerX + 10, centerY + 5);
+            ctx.closePath();
+            ctx.fill();
+            
+            // If we have user location, draw the dragon ball
+            if (userLocation.lat !== null && userLocation.lng !== null) {
+                const { distance, bearing } = getDistanceAndBearing(
+                    userLocation.lat, userLocation.lng,
+                    DRAGON_BALL_COORDINATES.lat, DRAGON_BALL_COORDINATES.lng
+                );
+                
+                // Convert to grid coordinates (1km per grid)
+                const maxVisibleDistance = 5; // 5km visible radius (half of 10x10 grid)
+                
+                if (distance <= maxVisibleDistance && blinkOn) {
+                    // Dragon ball is within visible range, show as yellow dot
+                    // Calculate position based on distance and bearing
+                    const gridDistanceX = distance * Math.sin(bearing * Math.PI / 180);
+                    const gridDistanceY = distance * Math.cos(bearing * Math.PI / 180);
+                    
+                    // Convert to pixel coordinates
+                    const ballX = centerX + gridDistanceX * (gridSize / GRID_SIZE_KM);
+                    const ballY = centerY - gridDistanceY * (gridSize / GRID_SIZE_KM);
+                    
+                    // Draw dragon ball
+                    ctx.fillStyle = 'yellow';
+                    ctx.beginPath();
+                    ctx.arc(ballX, ballY, 10, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Draw distance text
+                    ctx.fillStyle = 'white';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${distance.toFixed(2)} km`, ballX, ballY - 15);
+                } else {
+                    // Dragon ball is out of range, show arrow pointing to it
+                    // Calculate arrow position at the edge of the circle
+                    const arrowX = centerX + radius * Math.sin(bearing * Math.PI / 180) * 0.8;
+                    const arrowY = centerY - radius * Math.cos(bearing * Math.PI / 180) * 0.8;
+                    
+                    // Draw arrow
+                    ctx.save();
+                    ctx.translate(arrowX, arrowY);
+                    ctx.rotate((bearing - 90) * Math.PI / 180);
+                    
+                    if (blinkOn) {
+                        ctx.fillStyle = 'yellow';
+                        ctx.beginPath();
+                        ctx.moveTo(0, -10);
+                        ctx.lineTo(7, 10);
+                        ctx.lineTo(-7, 10);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    
+                    ctx.restore();
+                    
+                    // Draw distance text
+                    ctx.fillStyle = 'white';
+                    ctx.font = '14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${distance.toFixed(2)} km`, arrowX, arrowY + 25);
+                }
+            }
+            
+            // Restore canvas state (remove clipping)
+            ctx.restore();
+            
+            // Request next frame
+            requestAnimationFrame(drawRadar);
+        }
+        
+        // Initialize the app
+        initGeolocation();
+        drawRadar();
+    </script>
+</body>
+</html>
