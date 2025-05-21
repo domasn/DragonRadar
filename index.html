@@ -27,6 +27,8 @@
             padding: 5px 10px;
             border-radius: 5px;
             font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
         }
         .loading {
             position: absolute;
@@ -56,6 +58,13 @@
         const statusDiv = document.getElementById('status');
         const loadingDiv = document.getElementById('loading');
         
+        // Status visibility toggle
+        let statusVisible = true;
+        statusDiv.addEventListener('click', () => {
+            statusVisible = !statusVisible;
+            statusDiv.style.opacity = statusVisible ? '1' : '0';
+        });
+        
         // Set canvas dimensions to full screen
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -69,8 +78,8 @@
         
         // Dragon Ball coordinates (hardcoded)
         const DRAGON_BALL_COORDINATES = {
-            lat: 54.8582,
-            lng: 24.2775
+            lat: 54.6697746,
+            lng: 25.2690940
         };
         
         // User location (will be updated by geolocation)
@@ -325,39 +334,39 @@
                     ctx.arc(ballX, ballY, 10, 0, 2 * Math.PI);
                     ctx.fill();
                     
-                    // Draw distance text
-                    ctx.fillStyle = 'white';
-                    ctx.font = '12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${distance.toFixed(2)} km`, ballX, ballY - 15);
+                    // No distance text shown on radar as requested
                 } else {
                     // Dragon ball is out of range, show arrow pointing to it
                     // Calculate arrow position at the edge of the circle
                     const arrowX = centerX + radius * Math.sin(bearing * Math.PI / 180) * 0.8;
                     const arrowY = centerY - radius * Math.cos(bearing * Math.PI / 180) * 0.8;
                     
-                    // Draw arrow
-                    ctx.save();
-                    ctx.translate(arrowX, arrowY);
-                    ctx.rotate((bearing - 90) * Math.PI / 180);
-                    
                     if (blinkOn) {
+                        // Draw arrows based on distance
+                        ctx.save();
+                        ctx.translate(arrowX, arrowY);
+                        ctx.rotate((bearing - 90) * Math.PI / 180);
+                        
                         ctx.fillStyle = 'yellow';
-                        ctx.beginPath();
-                        ctx.moveTo(0, -10);
-                        ctx.lineTo(7, 10);
-                        ctx.lineTo(-7, 10);
-                        ctx.closePath();
-                        ctx.fill();
+                        ctx.font = '20px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        
+                        // Determine number of arrows based on distance
+                        let arrows = '▸';
+                        if (distance > 50) {
+                            arrows = '▸▸▸';
+                        } else if (distance > 20) {
+                            arrows = '▸▸';
+                        }
+                        
+                        // Draw the arrows
+                        ctx.fillText(arrows, 0, 0);
+                        
+                        ctx.restore();
                     }
                     
-                    ctx.restore();
-                    
-                    // Draw distance text
-                    ctx.fillStyle = 'white';
-                    ctx.font = '14px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${distance.toFixed(2)} km`, arrowX, arrowY + 25);
+                    // No distance text shown
                 }
             }
             
