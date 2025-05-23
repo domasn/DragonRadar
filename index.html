@@ -74,21 +74,10 @@
             statusDiv.style.opacity = statusVisible ? '1' : '0';
         });
         
-        // Set canvas dimensions to full screen and support high-DPI screens
+        // Set canvas dimensions to full screen
         function resizeCanvas() {
-            const dpr = window.devicePixelRatio || 1;
-        
-            // Set the actual canvas size in pixels
-            canvas.width = window.innerWidth * dpr;
-            canvas.height = window.innerHeight * dpr;
-        
-            // Set the CSS display size
-            canvas.style.width = window.innerWidth + 'px';
-            canvas.style.height = window.innerHeight + 'px';
-        
-            // Scale the drawing context to match the device pixel ratio
-            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset any existing transforms
-            ctx.scale(dpr, dpr);
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
         
         window.addEventListener('resize', resizeCanvas);
