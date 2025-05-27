@@ -88,8 +88,8 @@
         
         // Dragon Ball coordinates (hardcoded)
         const DRAGON_BALL_COORDINATES = {
-            lat: 54.9312130,
-            lng: 23.9735305
+            lat: 54.8921107,
+            lng: 23.9233159
         };
 
         // Determines if Dragon Ball should move with the user
@@ -173,7 +173,7 @@
                 getPosition();
                 
                 // Set up recurring timer to update position every 5 seconds
-                setInterval(getPosition, 5000);
+                setInterval(getPosition, 2000);
                 
             } else {
                 statusDiv.textContent = "Geolocation is not supported by this browser.";
