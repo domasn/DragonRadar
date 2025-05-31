@@ -84,12 +84,12 @@
         resizeCanvas();
         
         // Constants
-        const GRID_SIZE_KM = 0.5; // Each grid square is 1km
+        const GRID_SIZE_KM = 1; // Each grid square is 1km
         
         // Dragon Ball coordinates (hardcoded)
         const DRAGON_BALL_COORDINATES = {
-            lat: 54.9181471,
-            lng: 23.9324649
+            lat: 54,
+            lng: 23
         };
 
         // Determines if Dragon Ball should move with the user
@@ -329,7 +329,7 @@
                 );
                 
                 // Convert to grid coordinates (1km per grid)
-                const maxVisibleDistance = 2.5; // 5km visible radius (half of 10x10 grid)
+                const maxVisibleDistance = 5; // 5km visible radius (half of 10x10 grid)
                 
                 if (distance <= maxVisibleDistance && blinkOn) {
                     // Dragon ball is within visible range, show as yellow dot
